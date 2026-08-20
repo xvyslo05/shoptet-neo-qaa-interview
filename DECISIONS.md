@@ -1,0 +1,41 @@
+# Decision Log
+
+Every notable decision made during the development of this repository is recorded here — both human decisions and AI-assisted ones. Newest entries at the bottom. Format: date, decision, who made it, rationale.
+
+## Decided
+
+| # | Date | Decision | By | Rationale |
+|---|------|----------|----|-----------|
+| 1 | 2026-08-20 | Purpose of the repo: a small app used for interviewing QAA candidates. | Human | Defined in the initial brief. |
+| 2 | 2026-08-20 | The app is a calculator supporting `+`, `-`, `*`, `/`, `C` (clear all) and `CE` (clear entry). | Human | Small enough to review in an interview, big enough to have real test surface. |
+| 3 | 2026-08-20 | Backend in PHP, frontend in React. **Superseded by #11.** | Human | Matches the company stack the candidate would work with. |
+| 4 | 2026-08-20 | The app will be published via GitHub (exact publishing mechanism still open — see open question O1). | Human | Candidates and interviewers need easy access. |
+| 5 | 2026-08-20 | Four levels of tests: backend unit tests, frontend tests (Vite/Vitest), contract tests, and E2E tests (Cypress). | Human | The candidate should see a realistic multi-level test pyramid. |
+| 6 | 2026-08-20 | Test coverage is intentionally low and incomplete. One of the candidate's tasks is to measure coverage and propose improvements. | Human | The gaps are the exercise, not an oversight. |
+| 7 | 2026-08-20 | Repository is prepared (structure, docs, decision log) before any implementation starts. | Human | Open design questions must be answered first. |
+| 8 | 2026-08-20 | Monorepo layout: `backend/`, `frontend/`, `e2e/`, `contracts/` as top-level directories. | AI (Claude) | Keeps all four test levels in one repo so the candidate can navigate everything in one place. Placeholder dirs only until implementation starts. |
+| 9 | 2026-08-20 | Decisions are logged in this single `DECISIONS.md` file rather than as individual ADR files. | AI (Claude) | The project is small; one chronological file is easier for a candidate to read during an interview. |
+| 10 | 2026-08-20 | Deployment target: the app is published as a native GitHub Pages site, built and deployed by a GitHub Actions workflow. Closes O1. | Human | Explored alternatives (Vercel, Render, Codespaces-only, an actual GitHub App integration) and chose to stay GitHub-native with no external hosting. |
+| 11 | 2026-08-20 | Backend is rewritten in TypeScript (Node.js); PHP is dropped. Supersedes the backend half of #3. | Human | Forced by #10: GitHub Pages serves static files only and cannot run PHP (or any server). Keeping PHP would require either an external host (rejected in #10) or duplicating the calculation logic in a second language for the static demo. |
+| 12 | 2026-08-20 | Architecture: `backend/` is a TypeScript package containing a pure calculation engine plus a thin HTTP API. Locally and in CI it runs as a real Node HTTP server. In the deployed GitHub Pages build, the same engine is served in-browser by an MSW (Mock Service Worker) service worker, so the frontend always talks to the same HTTP contract (`/api/...`). | AI (Claude) | Preserves all four test levels on a static deployment, avoids duplicating engine logic, and keeps real inspectable network traffic on the live demo — useful material for a QAA interview. |
+| 13 | 2026-08-20 | Calculation logic lives in the backend engine; the React frontend is a thin client. Closes O2. | AI (Claude), per earlier recommendation | Gives the backend unit tests and the contract tests something real to verify. |
+| 14 | 2026-08-20 | The API is stateless (e.g. `POST /api/calculate` with operands and operator). `C` and `CE` are frontend-only state concerns. Closes O3. | AI (Claude) | Simplest contract; `C`/`CE` behavior is then covered by frontend and E2E tests, which is itself a useful coverage-discussion point for candidates. |
+| 15 | 2026-08-20 | Backend unit tests use Vitest (PHPUnit dropped along with PHP). | AI (Claude) | Follows from #11; keeps a single test-runner family across backend and frontend. |
+| 16 | 2026-08-20 | API semantics (closes O4): `POST /api/calculate` with body `{a: number, b: number, op: "+" \| "-" \| "*" \| "/"}` returns `{result: number}`. Malformed or non-numeric input → HTTP 400. Division by zero → HTTP 422 with `{error: {code: "DIVISION_BY_ZERO", message}}`. Plain IEEE-754 floats with no rounding (the `0.1 + 0.2` quirk is left in on purpose). One binary operation per request; chaining is handled by the frontend feeding the previous result back as the next operand. | AI (Claude), delegated by human | Smallest possible contract that still has interesting error and precision behavior for a QAA interview to probe. |
+| 17 | 2026-08-20 | Backend HTTP framework: Express. Node 22 LTS, pinned via `.nvmrc`. Monorepo managed with plain npm workspaces; the frontend (and its MSW handlers) import the engine from the backend workspace package. Closes O5. | Human ("the easier, the better") + AI picks | Express is the most widely recognized minimal choice; npm workspaces avoid extra tooling (pnpm/turbo). |
+| 18 | 2026-08-20 | TypeScript everywhere (frontend and backend). React 19, plain CSS, no styling framework. Closes O6. | Human (TS) + AI details | Single language across the repo; minimal styling keeps the candidate focused on behavior. |
+| 19 | 2026-08-20 | Contract testing is OpenAPI-first (closes O7): `contracts/openapi.yaml` is the source of truth, written before implementation. Contract tests validate the real Express server's responses against the spec; the same spec informs the MSW handlers. | Human | Spec-first gives contract tests an anchor and keeps server and in-browser mock aligned. |
+| 20 | 2026-08-20 | Cypress E2E suites are included in the repo from the start, even as dummy/red tests, running against the local dev server. Closes O8. | Human | The suites must exist for the candidate to assess, regardless of whether they pass. |
+| 21 | 2026-08-20 | No test jobs in CI. The only GitHub Actions workflow is the GitHub Pages build & deploy. Closes O9. | Human | CI is out of scope for the interview exercise; the Pages workflow is required by #10. |
+| 22 | 2026-08-20 | Intentional coverage gaps only — no seeded bugs. Closes O11. | Human | Keeps the exercise scoped to coverage assessment. |
+| 23 | 2026-08-20 | Local dev without Docker: `npm install` + `npm run dev` via npm workspaces. Closes O12. | Human ("the easier, the better") + AI pick | Single Node toolchain makes Docker unnecessary. |
+| 24 | 2026-08-20 | The interview is conducted live on the interviewer's machine. No fork/PR workflow, no branch protection. Closes O13. | Human | Candidate works directly in a local checkout during the session. |
+| 25 | 2026-08-20 | ESLint (with typescript-eslint) is included; no Prettier. Closes O14. | Human (ESLint) | Prettier omitted — formatting is not part of the exercise. |
+| 26 | 2026-08-20 | Repository is public, on the GitHub free plan (required for Pages on free). Closes O15 except for the license choice, which stays open (O16). | Human | Public visibility is the free-plan Pages requirement. |
+| 27 | 2026-08-20 | License: MIT. Copyright holder "Shoptet, a.s." (amend if the legal entity name differs). Closes O16. | Human (MIT) + AI (holder) | Standard permissive default for a public repo. |
+| 28 | 2026-08-20 | A concrete planted-gap plan for all four test levels exists, authored by AI and accepted by the human. It is deliberately NOT documented in this file: the repo is public and the plan is the interviewer's answer key, so it lives in a private file outside the repository (also outside the working directory, since candidates work live on this machine — #24). Closes O10. | Human (delegated the specifics to AI) | Interviewers need a consistent answer key; candidates must not be able to find it. |
+| 29 | 2026-08-20 | No coverage tooling is preconfigured in any workspace (no `--coverage` scripts, no coverage config). | AI (Claude), part of the O10 plan | Setting up coverage measurement is itself part of the candidate exercise, per the original brief. |
+
+## Open questions (to decide before implementation)
+
+None — all open questions (O1–O16) have been decided. See the decided table above. The repository is ready for implementation.

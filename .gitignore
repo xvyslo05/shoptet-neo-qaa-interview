@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+frontend/dist/
+backend/dist/
+
+# Test artifacts
+coverage/
+e2e/cypress/screenshots/
+e2e/cypress/videos/
+
+# Environment
+.env
+.env.local
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
