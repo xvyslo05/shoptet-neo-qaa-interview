@@ -1,0 +1,29 @@
+{
+  "name": "@qaa/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./engine": {
+      "types": "./src/engine.ts",
+      "import": "./src/engine.ts"
+    },
+    "./app": {
+      "types": "./src/app.ts",
+      "import": "./src/app.ts"
+    }
+  },
+  "scripts": {
+    "dev": "node --experimental-strip-types --watch src/server.ts",
+    "start": "node --experimental-strip-types src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "vitest": "^4.1.9"
+  }
+}

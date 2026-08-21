@@ -1,0 +1,87 @@
+openapi: 3.1.0
+info:
+  title: QAA Interview Calculator API
+  version: 1.0.0
+paths:
+  /api/calculate:
+    post:
+      summary: Perform one binary calculation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - a
+                - b
+                - op
+              properties:
+                a:
+                  type: number
+                b:
+                  type: number
+                op:
+                  type: string
+                  enum:
+                    - "+"
+                    - "-"
+                    - "*"
+                    - "/"
+      responses:
+        "200":
+          description: Calculation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - result
+                properties:
+                  result:
+                    type: number
+        "400":
+          description: Malformed or invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - error
+                properties:
+                  error:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - code
+                      - message
+                    properties:
+                      code:
+                        type: string
+                        const: BAD_REQUEST
+                      message:
+                        type: string
+        "422":
+          description: Division by zero
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - error
+                properties:
+                  error:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - code
+                      - message
+                    properties:
+                      code:
+                        type: string
+                        const: DIVISION_BY_ZERO
+                      message:
+                        type: string

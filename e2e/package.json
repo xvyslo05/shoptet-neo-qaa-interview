@@ -1,0 +1,13 @@
+{
+  "name": "@qaa/e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "cypress run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "cypress": "^15.1.0"
+  }
+}
