@@ -1,99 +1,80 @@
-import express, {
-  type ErrorRequestHandler,
-  type Request,
-  type Response,
-} from "express";
+import express, { type Request, type Response } from "express";
 
 import {
-  calculate,
-  DivisionByZeroError,
-  isOp,
-  type Op,
+  canonicalNameFor,
+  datesForName,
+  namesForDate,
+  parseDate,
 } from "./engine.ts";
 
-interface CalculationRequest {
-  a: number;
-  b: number;
-  op: Op;
-}
+const ERROR_MESSAGES = {
+  MISSING_QUERY: "Zadejte datum nebo jméno.",
+  AMBIGUOUS_QUERY: "Zadejte pouze datum, nebo pouze jméno.",
+  INVALID_DATE: "Zadané datum není platné.",
+  NAME_NOT_FOUND: "Jméno nebylo v kalendáři nalezeno.",
+} as const;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+type ErrorCode = keyof typeof ERROR_MESSAGES;
 
-function parseCalculationRequest(value: unknown): CalculationRequest | null {
-  if (
-    !isRecord(value) ||
-    typeof value.a !== "number" ||
-    !Number.isFinite(value.a) ||
-    typeof value.b !== "number" ||
-    !Number.isFinite(value.b) ||
-    !isOp(value.op)
-  ) {
-    return null;
-  }
-
-  return { a: value.a, b: value.b, op: value.op };
-}
-
-function badRequest(response: Response, message: string): void {
-  response.status(400).json({
+function sendError(
+  response: Response,
+  status: 400 | 404,
+  code: ErrorCode,
+): void {
+  response.status(status).json({
     error: {
-      code: "BAD_REQUEST",
-      message,
+      code,
+      message: ERROR_MESSAGES[code],
     },
   });
 }
 
 export const app = express();
 
-app.use(express.json());
+app.get("/api/nameday", (request: Request, response: Response) => {
+  const hasDate = Object.hasOwn(request.query, "date");
+  const hasName = Object.hasOwn(request.query, "name");
 
-app.post("/api/calculate", (request: Request, response: Response) => {
-  const calculation = parseCalculationRequest(request.body as unknown);
-
-  if (calculation === null) {
-    badRequest(
-      response,
-      'Body must contain finite numbers "a" and "b" and a supported "op"',
-    );
+  if (!hasDate && !hasName) {
+    sendError(response, 400, "MISSING_QUERY");
     return;
   }
 
-  try {
-    const result = calculate(calculation.a, calculation.b, calculation.op);
-
-    if (!Number.isFinite(result)) {
-      badRequest(response, "Calculation result must be a finite number");
-      return;
-    }
-
-    response.status(200).json({ result });
-  } catch (error: unknown) {
-    if (error instanceof DivisionByZeroError) {
-      response.status(422).json({
-        error: {
-          code: "DIVISION_BY_ZERO",
-          message: error.message,
-        },
-      });
-      return;
-    }
-
-    throw error;
+  if (hasDate && hasName) {
+    sendError(response, 400, "AMBIGUOUS_QUERY");
+    return;
   }
+
+  if (hasDate) {
+    const dateValue = request.query.date;
+    const date = typeof dateValue === "string" ? parseDate(dateValue) : null;
+
+    if (date === null) {
+      sendError(response, 400, "INVALID_DATE");
+      return;
+    }
+
+    response.status(200).json({
+      type: "date",
+      date,
+      names: namesForDate(date.day, date.month),
+    });
+    return;
+  }
+
+  const nameValue = request.query.name;
+  const dates = typeof nameValue === "string" ? datesForName(nameValue) : [];
+  const canonicalName =
+    typeof nameValue === "string" ? canonicalNameFor(nameValue) : null;
+
+  if (canonicalName === null || dates.length === 0) {
+    sendError(response, 404, "NAME_NOT_FOUND");
+    return;
+  }
+
+  response.status(200).json({
+    type: "name",
+    name: canonicalName,
+    dates,
+  });
 });
-
-const jsonErrorHandler: ErrorRequestHandler = (error, _request, response, next) => {
-  const isMalformedJson =
-    isRecord(error) && error.type === "entity.parse.failed";
-
-  if (isMalformedJson) {
-    badRequest(response, "Request body must be valid JSON");
-    return;
-  }
-
-  next(error);
-};
-
-app.use(jsonErrorHandler);

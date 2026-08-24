@@ -1,87 +1,150 @@
 openapi: 3.1.0
 info:
-  title: QAA Interview Calculator API
+  title: Czech Name-Day API
   version: 1.0.0
+  description: Look up Czech name days by date or by first name.
 paths:
-  /api/calculate:
-    post:
-      summary: Perform one binary calculation
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - a
-                - b
-                - op
-              properties:
-                a:
-                  type: number
-                b:
-                  type: number
-                op:
-                  type: string
-                  enum:
-                    - "+"
-                    - "-"
-                    - "*"
-                    - "/"
+  /api/nameday:
+    get:
+      summary: Look up a Czech name day
+      description: Exactly one of the date and name query parameters must be present.
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: >-
+            A Czech date in D.M., D.M, DD.MM., or D.M.YYYY form, with an
+            optional single space after dots, or an ISO date in YYYY-MM-DD form.
+          schema:
+            type: string
+          examples:
+            czech:
+              value: 7.3.
+            czechWithYear:
+              value: 7. 3. 2026
+            iso:
+              value: 2026-03-07
+        - name: name
+          in: query
+          required: false
+          description: >-
+            A first name matched after trimming, case folding, and removing
+            diacritics.
+          schema:
+            type: string
+          example: Tomáš
       responses:
         "200":
-          description: Calculation result
+          description: A lookup result for the supplied date or name
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - result
-                properties:
-                  result:
-                    type: number
+                oneOf:
+                  - $ref: "#/components/schemas/DateResult"
+                  - $ref: "#/components/schemas/NameResult"
+                discriminator:
+                  propertyName: type
         "400":
-          description: Malformed or invalid request
+          description: Missing, ambiguous, or invalid query
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - error
-                properties:
-                  error:
-                    type: object
-                    additionalProperties: false
-                    required:
-                      - code
-                      - message
-                    properties:
-                      code:
-                        type: string
-                        const: BAD_REQUEST
-                      message:
-                        type: string
-        "422":
-          description: Division by zero
+                $ref: "#/components/schemas/BadRequestError"
+        "404":
+          description: The supplied first name is not in the calendar
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - error
-                properties:
-                  error:
-                    type: object
-                    additionalProperties: false
-                    required:
-                      - code
-                      - message
-                    properties:
-                      code:
-                        type: string
-                        const: DIVISION_BY_ZERO
-                      message:
-                        type: string
+                $ref: "#/components/schemas/NameNotFoundError"
+components:
+  schemas:
+    MonthDay:
+      type: object
+      additionalProperties: false
+      required:
+        - day
+        - month
+      properties:
+        day:
+          type: integer
+          minimum: 1
+          maximum: 31
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+    DateResult:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - date
+        - names
+      properties:
+        type:
+          type: string
+          const: date
+        date:
+          $ref: "#/components/schemas/MonthDay"
+        names:
+          type: array
+          items:
+            type: string
+    NameResult:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - name
+        - dates
+      properties:
+        type:
+          type: string
+          const: name
+        name:
+          type: string
+          description: Canonical calendar spelling.
+        dates:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/MonthDay"
+    BadRequestError:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum:
+                - MISSING_QUERY
+                - AMBIGUOUS_QUERY
+                - INVALID_DATE
+            message:
+              type: string
+    NameNotFoundError:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              const: NAME_NOT_FOUND
+            message:
+              type: string

@@ -1,17 +1,32 @@
-import type { Op } from "@qaa/backend/engine";
+import type { MonthDay } from "@qaa/backend/engine";
 
-interface CalculationSuccess {
-  result: number;
+export interface DateNamedayResult {
+  type: "date";
+  date: MonthDay;
+  names: string[];
 }
 
-interface CalculationFailure {
+export interface NameNamedayResult {
+  type: "name";
+  name: string;
+  dates: MonthDay[];
+}
+
+export type NamedayResult = DateNamedayResult | NameNamedayResult;
+
+interface NamedayQuery {
+  date?: string;
+  name?: string;
+}
+
+interface ApiFailure {
   error: {
     code: string;
     message: string;
   };
 }
 
-function isCalculationFailure(value: unknown): value is CalculationFailure {
+function isApiFailure(value: unknown): value is ApiFailure {
   if (typeof value !== "object" || value === null || !("error" in value)) {
     return false;
   }
@@ -27,28 +42,35 @@ function isCalculationFailure(value: unknown): value is CalculationFailure {
   );
 }
 
-export async function requestCalculation(
-  a: number,
-  b: number,
-  op: Op,
-): Promise<number> {
-  const response = await fetch("/api/calculate", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ a, b, op }),
-  });
+export async function requestNameday(
+  query: NamedayQuery,
+): Promise<NamedayResult> {
+  const parameters = new URLSearchParams();
+
+  if (query.date !== undefined) {
+    parameters.set("date", query.date);
+  }
+
+  if (query.name !== undefined) {
+    parameters.set("name", query.name);
+  }
+
+  const apiPath = import.meta.env.PROD
+    ? `${import.meta.env.BASE_URL}api/nameday`
+    : "/api/nameday";
+  const queryString = parameters.toString();
+  const response = await fetch(
+    queryString === "" ? apiPath : `${apiPath}?${queryString}`,
+  );
   const body = (await response.json()) as unknown;
 
   if (!response.ok) {
-    if (isCalculationFailure(body)) {
+    if (isApiFailure(body)) {
       throw new Error(body.error.message);
     }
 
-    throw new Error(`Calculation failed with status ${response.status}`);
+    throw new Error(`Požadavek selhal se stavem ${response.status}.`);
   }
 
-  const success = body as CalculationSuccess;
-  return success.result;
+  return body as NamedayResult;
 }

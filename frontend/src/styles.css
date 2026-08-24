@@ -19,7 +19,8 @@ body {
   margin: 0;
 }
 
-button {
+button,
+input {
   font: inherit;
 }
 
@@ -30,9 +31,9 @@ button {
   padding: 24px;
 }
 
-.calculator {
-  width: min(100%, 390px);
-  padding: 28px;
+.nameday-card {
+  width: min(100%, 520px);
+  padding: 32px;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 28px;
   background: rgb(14 22 38 / 92%);
@@ -49,99 +50,154 @@ button {
 }
 
 h1 {
-  margin: 0 0 22px;
-  font-size: 1.35rem;
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 680;
+}
+
+.intro {
+  margin: 10px 0 26px;
+  color: #afbed7;
+  line-height: 1.5;
+}
+
+.nameday-form {
+  display: grid;
+  gap: 18px;
+}
+
+.date-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.72fr);
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  color: #dfe8f8;
+  font-size: 0.9rem;
   font-weight: 650;
 }
 
-.display {
-  display: block;
-  min-height: 82px;
-  overflow: hidden;
-  padding: 19px 20px;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 16px;
+.field input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 15px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 13px;
+  outline: none;
   background: #080d18;
   color: #f8fbff;
-  font-size: clamp(2rem, 9vw, 3rem);
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 500;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
-.error-slot {
-  min-height: 38px;
-  padding: 8px 2px 4px;
+.field input::placeholder {
+  color: #6f7f9b;
 }
 
-.error-message {
-  margin: 0;
-  color: #ff9b9b;
-  font-size: 0.85rem;
+.field input:focus {
+  border-color: #78d9ff;
+  box-shadow: 0 0 0 3px rgb(120 217 255 / 16%);
 }
 
-.keypad {
+.field input[type="date"] {
+  color-scheme: dark;
+}
+
+.choice-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #7f90ad;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.choice-divider::before,
+.choice-divider::after {
+  width: 100%;
+  height: 1px;
+  background: rgb(255 255 255 / 10%);
+  content: "";
+}
+
+.actions {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
 }
 
-.key {
-  min-height: 58px;
+.button {
+  min-height: 52px;
   border: 0;
-  border-radius: 15px;
-  background: #27344c;
-  color: #f7f9ff;
+  border-radius: 14px;
   cursor: pointer;
-  font-size: 1.15rem;
-  font-weight: 650;
+  font-weight: 700;
   transition:
     background-color 120ms ease,
     transform 120ms ease;
 }
 
-.key:hover:not(:disabled) {
-  background: #344564;
-}
-
-.key:active:not(:disabled) {
+.button:active {
   transform: translateY(1px);
 }
 
-.key:focus-visible {
+.button:focus-visible {
   outline: 3px solid #78d9ff;
   outline-offset: 2px;
 }
 
-.key:disabled {
-  cursor: wait;
-  opacity: 0.6;
-}
-
-.key--utility {
-  background: #3c465a;
-  color: #dce7ff;
-}
-
-.key--operator {
-  background: #1c7197;
-}
-
-.key--operator:hover:not(:disabled) {
-  background: #2589b5;
-}
-
-.key--equals {
+.button--primary {
   background: #31b68b;
   color: #041610;
 }
 
-.key--equals:hover:not(:disabled) {
+.button--primary:hover {
   background: #49cda2;
 }
 
-.key--wide {
-  grid-column: span 2;
+.button--secondary {
+  background: #27344c;
+  color: #f7f9ff;
+}
+
+.button--secondary:hover {
+  background: #344564;
+}
+
+.result {
+  display: block;
+  min-height: 72px;
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 16px;
+  background: #080d18;
+  color: #f8fbff;
+  font-size: 1.08rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.error-message {
+  min-height: 21px;
+  margin: 10px 2px 0;
+  color: #ff9b9b;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 480px) {
+  .nameday-card {
+    padding: 24px;
+    border-radius: 22px;
+  }
+
+  .date-fields {
+    grid-template-columns: 1fr;
+  }
 }

@@ -1,83 +1,75 @@
 import {
-  calculate,
-  DivisionByZeroError,
-  isOp,
+  canonicalNameFor,
+  datesForName,
+  namesForDate,
+  parseDate,
 } from "@qaa/backend/engine";
 import { http, HttpResponse } from "msw";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+const ERROR_MESSAGES = {
+  MISSING_QUERY: "Zadejte datum nebo jméno.",
+  AMBIGUOUS_QUERY: "Zadejte pouze datum, nebo pouze jméno.",
+  INVALID_DATE: "Zadané datum není platné.",
+  NAME_NOT_FOUND: "Jméno nebylo v kalendáři nalezeno.",
+} as const;
 
-function badRequest(message: string) {
+type ErrorCode = keyof typeof ERROR_MESSAGES;
+
+function errorResponse(status: 400 | 404, code: ErrorCode) {
   return HttpResponse.json(
     {
       error: {
-        code: "BAD_REQUEST",
-        message,
+        code,
+        message: ERROR_MESSAGES[code],
       },
     },
-    { status: 400 },
+    { status },
   );
 }
 
 export const handlers = [
-  http.post("/api/calculate", async ({ request }) => {
-    const mediaType = request.headers
-      .get("content-type")
-      ?.split(";", 1)[0]
-      ?.trim()
-      .toLowerCase();
+  http.get("*/api/nameday", ({ request }) => {
+    const parameters = new URL(request.url).searchParams;
+    const hasDate = parameters.has("date");
+    const hasName = parameters.has("name");
 
-    if (mediaType !== "application/json") {
-      return badRequest("Request body must be JSON");
+    if (!hasDate && !hasName) {
+      return errorResponse(400, "MISSING_QUERY");
     }
 
-    let body: unknown;
-
-    try {
-      body = await request.json();
-    } catch {
-      return badRequest("Request body must be valid JSON");
+    if (hasDate && hasName) {
+      return errorResponse(400, "AMBIGUOUS_QUERY");
     }
 
-    if (
-      !isRecord(body) ||
-      typeof body.a !== "number" ||
-      !Number.isFinite(body.a) ||
-      typeof body.b !== "number" ||
-      !Number.isFinite(body.b) ||
-      !isOp(body.op)
-    ) {
-      return badRequest(
-        'Body must contain finite numbers "a" and "b" and a supported "op"',
-      );
-    }
+    if (hasDate) {
+      const dateValues = parameters.getAll("date");
+      const date = dateValues.length === 1 ? parseDate(dateValues[0]) : null;
 
-    try {
-      const result = calculate(body.a, body.b, body.op);
-
-      if (!Number.isFinite(result)) {
-        return badRequest("Calculation result must be a finite number");
+      if (date === null) {
+        return errorResponse(400, "INVALID_DATE");
       }
 
       return HttpResponse.json({
-        result,
+        type: "date",
+        date,
+        names: namesForDate(date.day, date.month),
       });
-    } catch (error: unknown) {
-      if (error instanceof DivisionByZeroError) {
-        return HttpResponse.json(
-          {
-            error: {
-              code: "DIVISION_BY_ZERO",
-              message: error.message,
-            },
-          },
-          { status: 422 },
-        );
-      }
-
-      throw error;
     }
+
+    const nameValues = parameters.getAll("name");
+    const nameValue = nameValues.length === 1 ? nameValues[0] : null;
+    const dates = nameValue === null ? [] : datesForName(nameValue);
+    const canonicalName =
+      nameValue === null ? null : canonicalNameFor(nameValue);
+
+    if (canonicalName === null || dates.length === 0) {
+      return errorResponse(404, "NAME_NOT_FOUND");
+    }
+
+    return HttpResponse.json({
+      type: "name",
+      name: canonicalName,
+      dates,
+    });
   }),
 ];

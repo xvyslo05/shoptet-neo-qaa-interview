@@ -16,6 +16,7 @@ e2e/cypress/videos/
 
 # Interviewer-only files (never commit)
 GAP-PLAN.private.md
+DECISIONS.md
 
 # Editor / OS
 .idea/

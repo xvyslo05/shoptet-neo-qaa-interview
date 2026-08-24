@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { Calculator } from "./Calculator.tsx";
+import { NamedayForm } from "./NamedayForm.tsx";
 import "./styles.css";
 
 async function enableProductionApiMock(): Promise<void> {
@@ -27,7 +27,7 @@ void enableProductionApiMock().then(() => {
 
   createRoot(rootElement).render(
     <StrictMode>
-      <Calculator />
+      <NamedayForm />
     </StrictMode>,
   );
 });
