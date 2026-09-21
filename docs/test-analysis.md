@@ -118,7 +118,7 @@ Invalid/empty/max input — covered (AC5, AC8, AC15). Encoding & Unicode — NFC
 | TC-NAMEDAY-022 | AC6.d | BVA century | P1 | unit | auto | `parseDate("29.2.2000")` | Returns `{day:29, month:2}` (÷400) |
 | TC-NAMEDAY-023 | AC1.a | EP | P1 | unit | auto | `namesForDate(7, 3)` | Returns exactly `["Tomáš"]` |
 | TC-NAMEDAY-024 | AC1.c | EP edge | P2 | unit | auto | `namesForDate(1, 1)` | Returns `[]` |
-| TC-NAMEDAY-025 | AC1.b | EP | P2 | unit | auto | `namesForDate(16, 4)` (Heřman/Hermína day) | Returns an array with 2 names |
+| TC-NAMEDAY-025 | AC1.b | EP | P2 | unit | auto | `namesForDate(7, 4)` (Heřman/Hermína day) | Returns an array with 2 names |
 | TC-NAMEDAY-026 | AC2.a | EP | P1 | unit | auto | `datesForName("Tomáš")` | Returns `[{day:7, month:3}]` |
 | TC-NAMEDAY-027 | AC2.b | EP | P2 | unit | auto | `datesForName("Petr")` | Returns 2 entries: `{22,2}` and `{29,6}` |
 | TC-NAMEDAY-028 | AC3.a/d | EP | P1 | unit | auto | `canonicalNameFor("tomas")` | Returns `"Tomáš"` |
@@ -174,14 +174,26 @@ Layer distribution: 32 unit, 8 api, 12 component, 2 e2e, 2 manual → not e2e-do
 
 ## 6. Gaps & open questions
 
+- **Most load-bearing single case:** TC-NAMEDAY-047 / TC-NAMEDAY-048 (AC12, race condition) is the one test in this whole set whose absence would let a refactor of the `requestVersion` ref in `NamedayForm.tsx` regress silently — no other test, at any layer, would catch a stale response reappearing. If time is short, this is the case not to cut.
 - **Question 1** (above) — whitespace-only field handling; answer needed from whoever owns the intended UX, not guessed.
-- **Gap:** no AC or test pins down what the date picker actually produces as a string value on submission (assumed ISO, per `type="date"` semantics, but not verified against `parseDate`'s ISO branch in a dedicated component test). Folded into TC-NAMEDAY-052 (e2e), but a cheaper dedicated component test would close this without relying on e2e.
-- **Gap:** AC13 doesn't specify separator behavior for 3+ names on one day or 3+ dates for one name. Worth a quick data check before deciding it's unreachable and dropping it, or keeping it as a documented untested case.
+- **Gap 1:** no AC or test pins down what the date picker actually produces as a string value on submission (assumed ISO, per `type="date"` semantics, but not verified against `parseDate`'s ISO branch in a dedicated component test). Folded into TC-NAMEDAY-052 (e2e), but a cheaper dedicated component test would close this without relying on e2e.
+- **Gap 2:** downstream of Gap 1's rendering side rather than its parsing side — AC13 doesn't specify separator behavior for 3+ names on one day or 3+ dates for one name. Worth a quick data check before deciding it's unreachable and dropping it, or keeping it as a documented untested case.
+- **Gap 3:** a tooling gap, not a test-design one — neither the `backend` nor the `contracts` workspace declares an HTTP test client (no `supertest` or equivalent in either `package.json`). TC-NAMEDAY-033–040 (api layer) can't be written until this is decided — either add `supertest`, or call `app.listen(0)` and hit it with native `fetch`. It blocks 8 of the 54 cases until someone picks one.
 
 ## 7. Recommended automation split
 
-- **Unit** (Vitest, backend workspace): all `parseDate` / `namesForDate` / `datesForName` / `canonicalNameFor` / `normalizeName` cases (TC-NAMEDAY-001–032) — cheapest, fastest, most valuable; this is where BVA/decision-table completeness pays off.
-- **API** (contracts workspace, supertest-style against the Express app): the 6 decision-table rules plus the code-order check (TC-NAMEDAY-033–040) — proves the HTTP contract independent of the UI.
+- **Static** (already wired, run first): `npm run typecheck` + `npm run lint` at the root — not a test case, but the cheapest gate; every workspace's compile/lint errors should fail before any of the layers below even run.
+- **Unit** (Vitest, backend workspace): all `parseDate` / `namesForDate` / `datesForName` / `canonicalNameFor` / `normalizeName` cases (TC-NAMEDAY-001–032) — cheapest, fastest, most valuable; this is where BVA/decision-table completeness pays off. There is no integration/DB layer to add above this — the app has no persistence or DI container, so "integration testing" collapses into the api layer below rather than existing as its own step.
+- **API** (contracts or backend workspace, once an HTTP client is chosen — see tooling gap above): the 6 decision-table rules plus the code-order check (TC-NAMEDAY-033–040) — proves the HTTP contract independent of the UI.
 - **Component** (Vitest + Testing Library, frontend workspace): field-interaction and rendering cases (TC-NAMEDAY-041–050), especially the two concurrency cases (047, 048) — cheap here, expensive/flaky at e2e.
 - **E2E** (Cypress): only the two full-journey cases (TC-NAMEDAY-052, 053) — happy path and one recovery-from-error path. Resist adding more; every other AC is already provable lower in the pyramid.
 - **Manual**: TC-NAMEDAY-051 (exploratory, pending Question 1) and TC-NAMEDAY-054 (a11y) — not worth automating for a small interview app, but worth doing once by hand.
+
+### Cross-level duplication check
+
+Two behaviours are exercised at more than one layer above — checked explicitly so neither is an accidental duplicate:
+
+- **Query-validation decision table (R1–R6):** unit (007–032) proves *is this input valid* in isolation (`parseDate`/`canonicalNameFor` return values); api (033–039) proves *does the route return the right HTTP status and body given that validity*. Different ownership, no overlap.
+- **Result rendering (AC13):** component (041–042) owns every formatting variant (0/1/N names, N dates); e2e (052) adds only that one representative path round-trips correctly over the real network/UI. Component owns the behaviour; e2e adds only integration confidence for one path.
+
+No unresolved overlap.
