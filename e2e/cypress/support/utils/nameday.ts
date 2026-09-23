@@ -6,6 +6,7 @@
 import { canonicalNameFor, datesForName, namesForDate } from "@qaa/backend/engine";
 
 import { NamedayNames } from "../enums/NamedayNames";
+import { toIsoDateString } from "./dates";
 
 /**
  * @param day {number}
@@ -17,10 +18,13 @@ export const formatCzechDate = (day: number, month: number): string => {
 };
 
 /**
- * @returns {{ czechDate: string, expectedResult: string }} Today's date in
- *   Czech format, and the exact result text the app should render for it.
- *   Computed from the real calendar, not a fixed date, so the assertion
- *   holds regardless of which day the suite runs on.
+ * @returns {{ czechDate: string, isoDate: string, expectedResult: string }}
+ *   Today's date in Czech format (for the text input) and ISO format (for
+ *   the native date picker), plus the exact result text the app should
+ *   render for it. Both date strings are derived from the same `Date`
+ *   instance, so they can never disagree about which calendar day "today"
+ *   is. Computed from the real calendar, not a fixed date, so the
+ *   assertion holds regardless of which day the suite runs on.
  */
 export const todaysDateLookup = () => {
   const today = new Date();
@@ -28,12 +32,13 @@ export const todaysDateLookup = () => {
   const month = today.getMonth() + 1;
   const names = namesForDate(day, month) ?? [];
   const czechDate = formatCzechDate(day, month);
+  const isoDate = toIsoDateString(today);
   const expectedResult =
     names.length === 0
       ? `${czechDate} nemá svátek žádné jméno.`
       : `${czechDate} má svátek ${names.join(" a ")}.`;
 
-  return { czechDate, expectedResult };
+  return { czechDate, isoDate, expectedResult };
 };
 
 /**
