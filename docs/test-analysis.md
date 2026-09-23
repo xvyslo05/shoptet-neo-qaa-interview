@@ -148,6 +148,9 @@ Invalid/empty/max input — covered (AC5, AC8, AC15). Encoding & Unicode — NFC
 | TC-NAMEDAY-052 | AC1, AC2 | Scenario | P1 | e2e | auto | Open app, submit valid date → result; reset; submit valid name → result | Both results render end-to-end through the real UI + API/MSW |
 | TC-NAMEDAY-053 | AC5, AC7 | Scenario | P2 | e2e | auto | Submit invalid date, correct it, resubmit | Error shown, then replaced by a correct result |
 | TC-NAMEDAY-054 | a11y | Manual checklist | P3 | manual | manual | Keyboard-only + screen reader navigation | Labels, `aria-live` and `role="alert"` announce correctly |
+| TC-NAMEDAY-055 | AC6.d | BVA century (ISO) | P2 | unit | auto | `parseDate("2024-02-29")` | Returns `{day:29, month:2}` — proves the leap check also fires on the ISO branch's `yearText`, not only the Czech-format one |
+| TC-NAMEDAY-056 | AC6.b | Decision (leap, ISO) | P2 | unit | auto | `parseDate("2023-02-29")` | Returns `null` — same leap check, ISO input |
+| TC-NAMEDAY-057 | AC5.c | EP negative (sign) | P3 | unit | auto | `parseDate("-1.5.")` | Returns `null` — a leading minus never reaches the range check; it fails both format regexes and falls through to the same `null` return as AC5.d. Documents that "negative" in AC5.c is a black-box observation, not a distinct code path from AC5.d |
 
 ## 5. Coverage summary
 
@@ -157,8 +160,8 @@ Invalid/empty/max input — covered (AC5, AC8, AC15). Encoding & Unicode — NFC
 | AC2 | 026, 035, 052 | — | 027 (multi-date) | unit, api, e2e |
 | AC3 | 028, 029 | — | 030 (Unicode form) | unit |
 | AC4 | 001–006 | — | 008, 010, 012, 014 | unit |
-| AC5 | 034, 053 | 007, 009, 011, 013, 015, 016, 017 | — | unit, api, e2e |
-| AC6 | 018, 020, 022 | 019 | 021 (century) | unit |
+| AC5 | 034, 053 | 007, 009, 011, 013, 015, 016, 017, 057 (sign) | — | unit, api, e2e |
+| AC6 | 018, 020, 022, 055 | 019, 056 | 021 (century) | unit |
 | AC7 | 036 | 031 | — | unit, api |
 | AC8 | 037 | — | — | api |
 | AC9 | 038 | 039 (order check) | — | api |
@@ -170,7 +173,7 @@ Invalid/empty/max input — covered (AC5, AC8, AC15). Encoding & Unicode — NFC
 | AC15 | — | 032 | boundary itself | unit |
 | Q1 | — | 051 | — | api (manual) |
 
-Layer distribution: 32 unit, 8 api, 12 component, 2 e2e, 2 manual → not e2e-dominated, consistent with the pyramid.
+Layer distribution: 35 unit, 8 api, 12 component, 2 e2e, 2 manual → not e2e-dominated, consistent with the pyramid.
 
 ## 6. Gaps & open questions
 
@@ -179,11 +182,12 @@ Layer distribution: 32 unit, 8 api, 12 component, 2 e2e, 2 manual → not e2e-do
 - **Gap 1:** no AC or test pins down what the date picker actually produces as a string value on submission (assumed ISO, per `type="date"` semantics, but not verified against `parseDate`'s ISO branch in a dedicated component test). Folded into TC-NAMEDAY-052 (e2e), but a cheaper dedicated component test would close this without relying on e2e.
 - **Gap 2:** downstream of Gap 1's rendering side rather than its parsing side — AC13 doesn't specify separator behavior for 3+ names on one day or 3+ dates for one name. Worth a quick data check before deciding it's unreachable and dropping it, or keeping it as a documented untested case.
 - **Gap 3:** a tooling gap, not a test-design one — neither the `backend` nor the `contracts` workspace declares an HTTP test client (no `supertest` or equivalent in either `package.json`). TC-NAMEDAY-033–040 (api layer) can't be written until this is decided — either add `supertest`, or call `app.listen(0)` and hit it with native `fetch`. It blocks 8 of the 54 cases until someone picks one.
+- **Closed during review:** the leap/century check (`yearText` in `parseDate`) is derived from either the ISO or the Czech regex match, but TC-018–022 only exercised the Czech branch — TC-NAMEDAY-055/056 close this by repeating the leap/non-leap pair through the ISO branch (`"2024-02-29"` / `"2023-02-29"`). Also closed: AC5.c names "negative day/month" as an atomic condition, but no case demonstrated it and a leading `-` in fact never reaches the range check (it fails the format regex first, same as AC5.d) — TC-NAMEDAY-057 makes that explicit instead of leaving a silent, misleading-looking hole in the coverage table. It is not expected to catch a real regression (the regex already guarantees this), so it is one of the lowest-value cases in the set and the first to drop under time pressure — it exists for AC-traceability completeness, not defect-finding power.
 
 ## 7. Recommended automation split
 
 - **Static** (already wired, run first): `npm run typecheck` + `npm run lint` at the root — not a test case, but the cheapest gate; every workspace's compile/lint errors should fail before any of the layers below even run.
-- **Unit** (Vitest, backend workspace): all `parseDate` / `namesForDate` / `datesForName` / `canonicalNameFor` / `normalizeName` cases (TC-NAMEDAY-001–032) — cheapest, fastest, most valuable; this is where BVA/decision-table completeness pays off. There is no integration/DB layer to add above this — the app has no persistence or DI container, so "integration testing" collapses into the api layer below rather than existing as its own step.
+- **Unit** (Vitest, backend workspace): all `parseDate` / `namesForDate` / `datesForName` / `canonicalNameFor` / `normalizeName` cases (TC-NAMEDAY-001–032, 055–057) — cheapest, fastest, most valuable; this is where BVA/decision-table completeness pays off. There is no integration/DB layer to add above this — the app has no persistence or DI container, so "integration testing" collapses into the api layer below rather than existing as its own step.
 - **API** (contracts or backend workspace, once an HTTP client is chosen — see tooling gap above): the 6 decision-table rules plus the code-order check (TC-NAMEDAY-033–040) — proves the HTTP contract independent of the UI.
 - **Component** (Vitest + Testing Library, frontend workspace): field-interaction and rendering cases (TC-NAMEDAY-041–050), especially the two concurrency cases (047, 048) — cheap here, expensive/flaky at e2e.
 - **E2E** (Cypress): only the two full-journey cases (TC-NAMEDAY-052, 053) — happy path and one recovery-from-error path. Resist adding more; every other AC is already provable lower in the pyramid.
