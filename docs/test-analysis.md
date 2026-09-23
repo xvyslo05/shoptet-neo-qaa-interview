@@ -21,7 +21,7 @@ Behavior and acceptance criteria were reconstructed by reading `backend/src/engi
 | AC7 | Unknown name → `NAME_NOT_FOUND` |
 | AC8 | Neither field filled → `MISSING_QUERY` |
 | AC9 | Both fields filled → `AMBIGUOUS_QUERY` |
-| AC10 | Date text/picker mutually clear each other; name field is independent (not disabled) — combines with AC9 for the overlap case |
+| AC10 | Typing in the date text field clears the picker; using the picker overwrites the date text field with the picker's value (not a mutual clear — asymmetric). Name field is independent (not disabled) — combines with AC9 for the overlap case |
 | AC11 | Reset clears both fields, result, error, and invalidates in-flight requests |
 | AC12 | Only the latest submitted request's response is shown; stale responses are discarded |
 | AC13 | Result-text rendering rules for date→names and name→dates, including the zero-name day |
@@ -42,12 +42,12 @@ Each AC split into atomic, testable conditions — one condition, one observable
 | AC2 | **a** name maps to one date · **b** name maps to multiple dates (`Petr` → 22.2. and 29.6.) |
 | AC3 | **a** case-insensitive · **b** diacritics-insensitive · **c** trims whitespace · **d** returns canonical spelling regardless of input casing |
 | AC4 | **a–g** one per format variant: `D.M.` / `D.M` / `DD.MM.` / `D.M.YYYY` / optional space / ISO / native picker |
-| AC5 | **a** day out of range for month · **b** month out of range · **c** zero/negative day or month · **d** unparsable garbage string |
+| AC5 | **a** day out of range for month · **b** month out of range · **c** zero/negative day or month · **d** unparsable garbage string · **e** malformed query shape — a repeated `date` param arrives as an array, not a string (found during code review, *Delinquent* lens) |
 | AC6 | **a** leap year, year given · **b** non-leap year, year given · **c** no year given · **d** century-rule boundary (1900 vs 2000) |
-| AC7 | single condition |
+| AC7 | **a** unknown name · **b** malformed query shape — a repeated `name` param arrives as an array, not a string (found during code review, *Delinquent* lens) |
 | AC8 | single condition |
 | AC9 | **a** both filled, both valid · **b** both filled, one/both invalid (⚠ tests that the ambiguity check pre-empts validity checks, per `app.ts` code order) |
-| AC10 | **a** typing date text clears picker · **b** picking date clears date text · **c** name field stays populated when date is entered (feeds AC9) |
+| AC10 | **a** typing date text clears the picker · **b** using the picker overwrites the date text field with the picker's value (verified against `NamedayForm.tsx`: `onChange` sets `date` to the picker's own value, it does not clear it to empty) · **c** name field stays populated when date is entered (feeds AC9) |
 | AC11 | **a** clears fields/result/error · **b** invalidates a stale in-flight request |
 | AC12 | single condition (race/staleness) |
 | AC13 | **a** date→name singular · **b** date→names plural ("a"-joined) · **c** date→zero names · **d** name→dates rendering |
@@ -86,7 +86,7 @@ Main path: fill one field → submit → see result. Alternate: submit with erro
 
 ### Negative / edge checklist
 
-Invalid/empty/max input — covered (AC5, AC8, AC15). Encoding & Unicode — NFC vs. NFD normalization form of the same name, both must match. Permissions/roles, time zones/locale/currency, back-navigation, data mutated elsewhere — all N/A, consciously excluded (no auth, no time component, single-page form, static read-only data). Network failure/timeouts — AC14.c. A11y — labels, `aria-live`, `role="alert"` — one manual check.
+Invalid/empty/max input — covered (AC5, AC8, AC15). Malformed query shape (a repeated param arriving as an array instead of a string) — AC5.e/AC7.b. Encoding & Unicode — NFC vs. NFD normalization form of the same name, both must match. Permissions/roles, time zones/locale/currency, back-navigation, data mutated elsewhere — all N/A, consciously excluded (no auth, no time component, single-page form, static read-only data). Network failure/timeouts — AC14.c. A11y — labels, `aria-live`, `role="alert"` — one manual check.
 
 ## 4. Test cases
 
@@ -124,29 +124,35 @@ Invalid/empty/max input — covered (AC5, AC8, AC15). Encoding & Unicode — NFC
 | TC-NAMEDAY-028 | AC3.a/d | EP | P1 | unit | auto | `canonicalNameFor("tomas")` | Returns `"Tomáš"` |
 | TC-NAMEDAY-029 | AC3.b/c | EP | P1 | unit | auto | `canonicalNameFor("  TOMÁŠ  ")` | Returns `"Tomáš"` |
 | TC-NAMEDAY-030 | AC3.b | EP Unicode | P2 | unit | auto | Same name in NFC vs. pre-decomposed NFD form | Both resolve to `"Tomáš"` — normalization is form-independent |
-| TC-NAMEDAY-031 | AC7 | EP negative | P1 | unit | auto | `canonicalNameFor("Xyzabc")` / `datesForName("Xyzabc")` | `null` / `[]` respectively |
+| TC-NAMEDAY-031 | AC7.a | EP negative | P1 | unit | auto | `canonicalNameFor("Xyzabc")` / `datesForName("Xyzabc")` | `null` / `[]` respectively |
 | TC-NAMEDAY-032 | AC15 | BVA length | P2 | unit | auto | `canonicalNameFor("Xyzabcdefgh")` (11 chars) | Returns `null`, no crash, no special handling |
 | TC-NAMEDAY-033 | R3 / AC1 | Decision | P1 | api | auto | `GET /api/nameday?date=7.3.` | 200, `{type:"date", date:{7,3}, names:["Tomáš"]}` |
 | TC-NAMEDAY-034 | R4 / AC5 | Decision | P1 | api | auto | `GET /api/nameday?date=32.1.` | 400, `INVALID_DATE` |
 | TC-NAMEDAY-035 | R5 / AC2 | Decision | P1 | api | auto | `GET /api/nameday?name=Tomáš` | 200, `{type:"name", name:"Tomáš", dates:[{7,3}]}` |
-| TC-NAMEDAY-036 | R6 / AC7 | Decision | P1 | api | auto | `GET /api/nameday?name=Xyzabc` | 404, `NAME_NOT_FOUND` |
+| TC-NAMEDAY-036 | R6 / AC7.a | Decision | P1 | api | auto | `GET /api/nameday?name=Xyzabc` | 404, `NAME_NOT_FOUND` |
 | TC-NAMEDAY-037 | R1 / AC8 | Decision | P1 | api | auto | `GET /api/nameday` (no params) | 400, `MISSING_QUERY` |
 | TC-NAMEDAY-038 | R2 / AC9.a | Decision | P1 | api | auto | `GET /api/nameday?date=7.3.&name=Tomáš` | 400, `AMBIGUOUS_QUERY` |
 | TC-NAMEDAY-039 | R2 / AC9.b | Decision ⚠ order | P1 | api | auto | `GET /api/nameday?date=garbage&name=` (both present, both invalid/empty) | 400, `AMBIGUOUS_QUERY` — **not** `INVALID_DATE`, proving the ambiguity check runs first |
+| TC-NAMEDAY-058 | AC5.e | EP negative (shape) | P2 | api | auto | `GET /api/nameday?date=1.1.&date=2.2.` (repeated param → array, not a string) | 400, `INVALID_DATE` — the `typeof === "string"` guard in `app.ts` fails safe, no crash |
+| TC-NAMEDAY-059 | AC7.b | EP negative (shape) | P2 | api | auto | `GET /api/nameday?name=Tomas&name=Petr` (repeated param → array, not a string) | 404, `NAME_NOT_FOUND` — same guard, name side |
 | TC-NAMEDAY-040 | AC14.a | EP | P1 | api | auto | `GET /api/nameday?date=abc`, inspect response schema | Body matches `BadRequestError` in `openapi.yaml` |
+| TC-NAMEDAY-060 | AC14.a | EP | P1 | api | auto | `GET /api/nameday?name=Xyzabc`, inspect response schema | Body matches `NameNotFoundError` in `openapi.yaml` — the 404 half of AC14.a, previously only the 400 half (TC-040) was contract-tested |
 | TC-NAMEDAY-041 | AC13.a/b/c | EP | P2 | component | auto | Mock `requestNameday`; submit for 1-name day, 2-name day, 0-name day | Rendered result text matches each AC13 formatting rule |
 | TC-NAMEDAY-042 | AC13.d | EP | P2 | component | auto | Mock a 2-date name result (Petr) | Text is `"Petr má svátek 22.2., 29.6."` |
-| TC-NAMEDAY-043 | AC10.a | EP | P2 | component | auto | Fill date text, then use the picker | Date text field clears once the picker is used |
-| TC-NAMEDAY-044 | AC10.b | EP | P2 | component | auto | Set the picker, then type in date text | Picker value clears once text is typed |
-| TC-NAMEDAY-045 | AC10.c / AC9 | Scenario | P1 | component | auto | Fill date *and* name, then submit | Client-side block, or the mocked ambiguous-error response is shown — test documents whichever the implementation actually does |
+| TC-NAMEDAY-043 | AC10.b | EP | P2 | component | auto | Fill date text, then use the picker | Date text field is overwritten with the picker's own value (not cleared to empty) |
+| TC-NAMEDAY-044 | AC10.a | EP | P2 | component | auto | Set the picker, then type in date text | Picker value clears once text is typed |
+| TC-NAMEDAY-045 | AC10.c / AC9 | Scenario | P1 | component | auto | Fill date *and* name, then submit | No client-side block — both values reach `requestNameday`; the mocked `AMBIGUOUS_QUERY` error is shown (resolved by the implementation: `NamedayForm.test.tsx`, "submits with both date and name present") |
 | TC-NAMEDAY-046 | AC11 | Scenario | P1 | component | auto | Fill fields, get a result, click Reset | Date text, picker, name, result and error are all empty |
 | TC-NAMEDAY-047 | AC11.b / AC12 | Scenario concurrency | P1 | component | auto | Submit, immediately Reset before the delayed mock resolves, then let it resolve | Result stays empty — stale response discarded |
 | TC-NAMEDAY-048 | AC12 | Scenario concurrency | P1 | component | auto | Submit A, change input, submit B; resolve B first, then late A | Only B's result shows; late A is discarded |
 | TC-NAMEDAY-049 | AC14.b | EP negative | P2 | component | auto | Mock a 500 with an unrecognized body; submit | Error shown via `role="alert"`; no crash; result stays empty |
 | TC-NAMEDAY-050 | AC14.c | EP negative | P2 | component | auto | Mock `fetch` to reject; submit | Error shown via `role="alert"`; no crash |
+| TC-NAMEDAY-061 | AC14.a | EP | P2 | unit | auto | `requestNameday` against a mocked (MSW) 404 with a recognized `{error:{code,message}}` body | Rejects with an `Error` whose message is `body.error.message` |
+| TC-NAMEDAY-062 | AC14.b | EP negative | P2 | unit | auto | `requestNameday` against a mocked 500 with an unrecognized body shape | Rejects with the generic `Požadavek selhal se stavem 500.` fallback, not a crash |
+| TC-NAMEDAY-063 | AC14.c | EP negative | P2 | unit | auto | `requestNameday` against a mocked network-level failure (`HttpResponse.error()`) | Rejects, error propagates unwrapped |
 | TC-NAMEDAY-051 | Question 1 | EP exploratory | P3 | api | manual | `GET /api/nameday?name=%20%20%20` | Document actual response (`NAME_NOT_FOUND` today); flag to product whether that matches intent |
 | TC-NAMEDAY-052 | AC1, AC2 | Scenario | P1 | e2e | auto | Open app, submit valid date → result; reset; submit valid name → result | Both results render end-to-end through the real UI + API/MSW |
-| TC-NAMEDAY-053 | AC5, AC7 | Scenario | P2 | e2e | auto | Submit invalid date, correct it, resubmit | Error shown, then replaced by a correct result |
+| TC-NAMEDAY-053 | AC5, AC7.a | Scenario | P2 | e2e | auto | Submit invalid date, correct it, resubmit | Error shown, then replaced by a correct result |
 | TC-NAMEDAY-054 | a11y | Manual checklist | P3 | manual | manual | Keyboard-only + screen reader navigation | Labels, `aria-live` and `role="alert"` announce correctly |
 | TC-NAMEDAY-055 | AC6.d | BVA century (ISO) | P2 | unit | auto | `parseDate("2024-02-29")` | Returns `{day:29, month:2}` — proves the leap check also fires on the ISO branch's `yearText`, not only the Czech-format one |
 | TC-NAMEDAY-056 | AC6.b | Decision (leap, ISO) | P2 | unit | auto | `parseDate("2023-02-29")` | Returns `null` — same leap check, ISO input |
@@ -160,20 +166,20 @@ Invalid/empty/max input — covered (AC5, AC8, AC15). Encoding & Unicode — NFC
 | AC2 | 026, 035, 052 | — | 027 (multi-date) | unit, api, e2e |
 | AC3 | 028, 029 | — | 030 (Unicode form) | unit |
 | AC4 | 001–006 | — | 008, 010, 012, 014 | unit |
-| AC5 | 034, 053 | 007, 009, 011, 013, 015, 016, 017, 057 (sign) | — | unit, api, e2e |
+| AC5 | 034, 053 | 007, 009, 011, 013, 015, 016, 017, 057 (sign), 058 (shape) | — | unit, api, e2e |
 | AC6 | 018, 020, 022, 055 | 019, 056 | 021 (century) | unit |
-| AC7 | 036 | 031 | — | unit, api |
+| AC7 | 036 | 031, 059 (shape) | — | unit, api |
 | AC8 | 037 | — | — | api |
 | AC9 | 038 | 039 (order check) | — | api |
 | AC10 | 043, 044, 045 | — | — | component |
 | AC11 | 046 | — | 047 (concurrency) | component |
 | AC12 | — | — | 047, 048 | component |
 | AC13 | 041, 042 | — | — | component |
-| AC14 | 040 | 049, 050 | — | api, component |
+| AC14 | 040, 060, 061 | 049, 050, 062, 063 | — | api, component, unit (frontend) |
 | AC15 | — | 032 | boundary itself | unit |
 | Q1 | — | 051 | — | api (manual) |
 
-Layer distribution: 35 unit, 8 api, 12 component, 2 e2e, 2 manual → not e2e-dominated, consistent with the pyramid.
+Layer distribution: 38 unit, 11 api, 12 component, 2 e2e, 2 manual → not e2e-dominated, consistent with the pyramid.
 
 ## 6. Gaps & open questions
 
@@ -181,14 +187,17 @@ Layer distribution: 35 unit, 8 api, 12 component, 2 e2e, 2 manual → not e2e-do
 - **Question 1** (above) — whitespace-only field handling; answer needed from whoever owns the intended UX, not guessed.
 - **Gap 1:** no AC or test pins down what the date picker actually produces as a string value on submission (assumed ISO, per `type="date"` semantics, but not verified against `parseDate`'s ISO branch in a dedicated component test). Folded into TC-NAMEDAY-052 (e2e), but a cheaper dedicated component test would close this without relying on e2e.
 - **Gap 2:** downstream of Gap 1's rendering side rather than its parsing side — AC13 doesn't specify separator behavior for 3+ names on one day or 3+ dates for one name. Worth a quick data check before deciding it's unreachable and dropping it, or keeping it as a documented untested case.
-- **Gap 3:** a tooling gap, not a test-design one — neither the `backend` nor the `contracts` workspace declares an HTTP test client (no `supertest` or equivalent in either `package.json`). TC-NAMEDAY-033–040 (api layer) can't be written until this is decided — either add `supertest`, or call `app.listen(0)` and hit it with native `fetch`. It blocks 8 of the 54 cases until someone picks one.
+- **Gap 3:** a tooling gap, not a test-design one — neither the `backend` nor the `contracts` workspace declares an HTTP test client (no `supertest` or equivalent in either `package.json`). TC-NAMEDAY-033–040 (api layer) can't be written until this is decided — either add `supertest`, or call `app.listen(0)` and hit it with native `fetch`. It blocks 8 of the 54 cases until someone picks one. **Resolved** (this branch): no new dependency — `app.listen(0)` + Node's built-in `fetch`, in `backend/tests/app.test.ts` and `contracts/tests/nameday-contract.test.ts`.
 - **Closed during review:** the leap/century check (`yearText` in `parseDate`) is derived from either the ISO or the Czech regex match, but TC-018–022 only exercised the Czech branch — TC-NAMEDAY-055/056 close this by repeating the leap/non-leap pair through the ISO branch (`"2024-02-29"` / `"2023-02-29"`). Also closed: AC5.c names "negative day/month" as an atomic condition, but no case demonstrated it and a leading `-` in fact never reaches the range check (it fails the format regex first, same as AC5.d) — TC-NAMEDAY-057 makes that explicit instead of leaving a silent, misleading-looking hole in the coverage table. It is not expected to catch a real regression (the regex already guarantees this), so it is one of the lowest-value cases in the set and the first to drop under time pressure — it exists for AC-traceability completeness, not defect-finding power.
+- **Closed during code review (unit/api test review):** a repeated `date` or `name` query param arrives at Express as an array, not a string — verified live against the running server (`?date=1.1.&date=2.2.` → 400 `INVALID_DATE`; `?name=Tomas&name=Petr` → 404 `NAME_NOT_FOUND`). The `typeof === "string"` guard in `app.ts` already handles this safely, but nothing pinned it down, so a future refactor could drop the guard unnoticed (the *Delinquent* review lens: malformed input, not just invalid values). New atomic conditions AC5.e/AC7.b, closed by TC-NAMEDAY-058/059. Also closed: the contract test (`nameday-contract.test.ts`) validated only the 400 `BadRequestError` schema against `openapi.yaml`; AC14.a covers both 400 and 404, but the `NameNotFoundError` schema was never contract-tested — closed by TC-NAMEDAY-060. Both `app.test.ts` and `nameday-contract.test.ts` also had identical `app.listen(0)`/close boilerplate, since extracted into a shared `backend/tests/testServer.ts` helper.
+- **Closed during code review (component test review):** `frontend/src/api.ts` — the module AC14.a/b are actually about (the `isApiFailure` type guard, the fallback-message template) — had **no test of its own** anywhere in the repo. Every `NamedayForm.test.tsx` case mocks `requestNameday` wholesale, so those tests prove the form reacts correctly to whatever error it's handed, not that `api.ts` derives the right message from a real HTTP response. Concretely, TC-NAMEDAY-049's mocked message string was hand-copied from `api.ts`'s own fallback template — if that template changed, the component test would keep passing against its own stale copy. Closed by TC-NAMEDAY-061/062/063 in `frontend/tests/api.test.ts`, exercising `requestNameday` against a real `msw/node` server instead of a hand-mocked one. Also fixed: TC-NAMEDAY-045's expected result used to read "test documents whichever the implementation actually does" — the component test now shows definitively that both fields reach the API unblocked; wording updated to state that as fact.
 
 ## 7. Recommended automation split
 
 - **Static** (already wired, run first): `npm run typecheck` + `npm run lint` at the root — not a test case, but the cheapest gate; every workspace's compile/lint errors should fail before any of the layers below even run.
 - **Unit** (Vitest, backend workspace): all `parseDate` / `namesForDate` / `datesForName` / `canonicalNameFor` / `normalizeName` cases (TC-NAMEDAY-001–032, 055–057) — cheapest, fastest, most valuable; this is where BVA/decision-table completeness pays off. There is no integration/DB layer to add above this — the app has no persistence or DI container, so "integration testing" collapses into the api layer below rather than existing as its own step.
-- **API** (contracts or backend workspace, once an HTTP client is chosen — see tooling gap above): the 6 decision-table rules plus the code-order check (TC-NAMEDAY-033–040) — proves the HTTP contract independent of the UI.
+- **Unit** (Vitest + `msw/node`, frontend workspace): `frontend/src/api.ts`'s own request/response handling (TC-NAMEDAY-061–063) — a real HTTP round-trip through MSW, not a hand-mocked `requestNameday`, so it can't silently drift from the module it's supposed to prove.
+- **API** (`backend/tests/app.test.ts`, `contracts/tests/nameday-contract.test.ts`): the 6 decision-table rules, the code-order check, the malformed-shape cases, and the two contract-schema checks (TC-NAMEDAY-033–040, 058–060) — proves the HTTP contract independent of the UI.
 - **Component** (Vitest + Testing Library, frontend workspace): field-interaction and rendering cases (TC-NAMEDAY-041–050), especially the two concurrency cases (047, 048) — cheap here, expensive/flaky at e2e.
 - **E2E** (Cypress): only the two full-journey cases (TC-NAMEDAY-052, 053) — happy path and one recovery-from-error path. Resist adding more; every other AC is already provable lower in the pyramid.
 - **Manual**: TC-NAMEDAY-051 (exploratory, pending Question 1) and TC-NAMEDAY-054 (a11y) — not worth automating for a small interview app, but worth doing once by hand.
