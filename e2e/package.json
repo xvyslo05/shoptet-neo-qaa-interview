@@ -7,6 +7,9 @@
     "test": "cypress run",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@qaa/backend": "*"
+  },
   "devDependencies": {
     "cypress": "^15.1.0"
   }

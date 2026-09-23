@@ -8,5 +8,5 @@
     "noEmit": true,
     "types": ["cypress", "node"]
   },
-  "include": ["cypress.config.ts", "cypress/**/*.ts"]
+  "include": ["cypress.config.ts", "cypress/**/*.ts", "../backend/src/engine.ts"]
 }

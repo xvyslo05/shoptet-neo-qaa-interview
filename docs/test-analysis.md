@@ -153,7 +153,7 @@ Invalid/empty/max input — covered (AC5, AC8, AC15). Malformed query shape (a r
 | TC-NAMEDAY-062 | AC14.b | EP negative | P2 | unit | auto | `requestNameday` against a mocked 500 with an unrecognized body shape | Rejects with the generic `Požadavek selhal se stavem 500.` fallback, not a crash |
 | TC-NAMEDAY-063 | AC14.c | EP negative | P2 | unit | auto | `requestNameday` against a mocked network-level failure (`HttpResponse.error()`) | Rejects, error propagates unwrapped |
 | TC-NAMEDAY-051 | Question 1 | EP exploratory | P3 | api | manual | `GET /api/nameday?name=%20%20%20` | Document actual response (`NAME_NOT_FOUND` today); flag to product whether that matches intent |
-| TC-NAMEDAY-052 | AC1, AC2 | Scenario | P1 | e2e | auto | Open app, submit valid date → result; reset; submit valid name → result | Both results render end-to-end through the real UI + API/MSW |
+| TC-NAMEDAY-052 | AC1, AC2 | Scenario | P1 | e2e | auto | Open app, submit valid date → result; reset; submit valid name → result | Both results render end-to-end through the real UI + real backend (`e2e/cypress/e2e/nameday_lookup.cy.ts`) |
 | TC-NAMEDAY-053 | AC5, AC7.a | Scenario | P2 | e2e | auto | Submit invalid date, correct it, resubmit | Error shown, then replaced by a correct result |
 | TC-NAMEDAY-054 | a11y | Manual checklist | P3 | manual | manual | Keyboard-only + screen reader navigation | Labels, `aria-live` and `role="alert"` announce correctly |
 | TC-NAMEDAY-055 | AC6.d | BVA century (ISO) | P2 | unit | auto | `parseDate("2024-02-29")` | Returns `{day:29, month:2}` — proves the leap check also fires on the ISO branch's `yearText`, not only the Czech-format one |
@@ -181,7 +181,7 @@ Invalid/empty/max input — covered (AC5, AC8, AC15). Malformed query shape (a r
 | AC15 | — | 032 | boundary itself | unit |
 | Q1 | — | 051 | — | api (manual) |
 
-Layer distribution: 40 unit (all auto), 12 api (11 auto + 1 manual — Q1 exploratory), 10 component (all auto), 2 e2e (auto, not yet implemented), 1 manual (a11y, not yet performed) → 65 cases total, not e2e-dominated, consistent with the pyramid.
+Layer distribution: 40 unit (all auto), 12 api (11 auto + 1 manual — Q1 exploratory), 10 component (all auto), 2 e2e (auto, implemented), 1 manual (a11y, not yet performed) → 65 cases total, not e2e-dominated, consistent with the pyramid.
 
 ## 6. Gaps & open questions
 
