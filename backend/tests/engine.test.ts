@@ -74,6 +74,12 @@ describe("parseDate", () => {
     });
   });
 
+  describe("sign (AC5.c)", () => {
+    it("rejects a leading minus sign — never reaches the range check, fails the format regex first, same path as AC5.d (TC-NAMEDAY-057)", () => {
+      expect(parseDate("-1.5.")).toBeNull();
+    });
+  });
+
   describe("unparsable input (AC5.d, negative equivalence partitioning)", () => {
     it("rejects a non-date string (TC-NAMEDAY-016)", () => {
       expect(parseDate("not-a-date")).toBeNull();
@@ -103,6 +109,14 @@ describe("parseDate", () => {
 
     it("accepts 29.2.2000 — divisible by 400 (TC-NAMEDAY-022)", () => {
       expect(parseDate("29.2.2000")).toEqual({ day: 29, month: 2 });
+    });
+
+    it("accepts 29.2. in a leap year via the ISO branch — proves the leap check also fires on isoMatch's yearText, not only the Czech-format one (TC-NAMEDAY-055)", () => {
+      expect(parseDate("2024-02-29")).toEqual({ day: 29, month: 2 });
+    });
+
+    it("rejects 29.2. in a non-leap year via the ISO branch (TC-NAMEDAY-056)", () => {
+      expect(parseDate("2023-02-29")).toBeNull();
     });
   });
 });
