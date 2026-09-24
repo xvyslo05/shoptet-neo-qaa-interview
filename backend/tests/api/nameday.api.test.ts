@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { app } from "../src/app.ts";
-import { startTestServer, type TestServer } from "./testServer.ts";
+import { app } from "../../src/app.ts";
+import { startTestServer, type TestServer } from "../testServer.ts";
 
 let testServer: TestServer;
 

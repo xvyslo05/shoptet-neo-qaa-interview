@@ -2,7 +2,7 @@ import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { requestNameday } from "../src/api.ts";
+import { requestNameday } from "../../src/api.ts";
 
 const server = setupServer();
 

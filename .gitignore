@@ -9,6 +9,8 @@ backend/dist/
 coverage/
 e2e/cypress/screenshots/
 e2e/cypress/videos/
+frontend/cypress/screenshots/
+frontend/cypress/videos/
 
 # Environment
 .env
@@ -17,6 +19,7 @@ e2e/cypress/videos/
 # Interviewer-only files (never commit)
 GAP-PLAN.private.md
 DECISIONS.md
+E2E-INTERVIEW-KEY.private.md
 
 # Editor / OS
 .idea/

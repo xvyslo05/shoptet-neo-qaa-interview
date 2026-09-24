@@ -5,7 +5,7 @@ import {
   datesForName,
   namesForDate,
   parseDate,
-} from "../src/engine.ts";
+} from "../../src/engine.ts";
 
 describe("parseDate", () => {
   describe("supported formats (AC4)", () => {

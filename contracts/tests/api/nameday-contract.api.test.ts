@@ -9,7 +9,7 @@ import { parse } from "yaml";
 import { app } from "@qaa/backend/app";
 import { startTestServer, type TestServer } from "@qaa/backend/tests/testServer";
 
-const openapiPath = fileURLToPath(new URL("../openapi.yaml", import.meta.url));
+const openapiPath = fileURLToPath(new URL("../../openapi.yaml", import.meta.url));
 const openapi = parse(readFileSync(openapiPath, "utf8")) as {
   components: { schemas: Record<string, object> };
 };

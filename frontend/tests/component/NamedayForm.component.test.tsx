@@ -2,13 +2,13 @@ import { fireEvent, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { NamedayResult } from "../src/api.ts";
-import { requestNameday } from "../src/api.ts";
-import { NamedayForm } from "../src/NamedayForm.tsx";
-import { NamedayFormSelectors } from "./NamedayFormSelectors.ts";
-import { get } from "./testUtils.ts";
+import type { NamedayResult } from "../../src/api.ts";
+import { requestNameday } from "../../src/api.ts";
+import { NamedayForm } from "../../src/NamedayForm.tsx";
+import { NamedayFormSelectors } from "../NamedayFormSelectors.ts";
+import { get } from "../testUtils.ts";
 
-vi.mock("../src/api.ts", () => ({
+vi.mock("../../src/api.ts", () => ({
   requestNameday: vi.fn(),
 }));
 

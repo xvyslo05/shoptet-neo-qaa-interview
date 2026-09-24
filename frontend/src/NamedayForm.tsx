@@ -1,32 +1,10 @@
 import { type FormEvent, useRef, useState } from "react";
 
 import { requestNameday, type NamedayResult } from "./api.ts";
-
-function formatDate(day: number, month: number): string {
-  return `${day}.${month}.`;
-}
-
-function formatResult(result: NamedayResult | null): string {
-  if (result === null) {
-    return "";
-  }
-
-  if (result.type === "name") {
-    const dates = result.dates
-      .map(({ day, month }) => formatDate(day, month))
-      .join(", ");
-    return `${result.name} má svátek ${dates}`;
-  }
-
-  const date = formatDate(result.date.day, result.date.month);
-
-  if (result.names.length === 0) {
-    return `${date} nemá svátek žádné jméno.`;
-  }
-
-  const names = result.names.join(" a ");
-  return `${date} má svátek ${names}.`;
-}
+import { DateFields } from "./components/DateFields.tsx";
+import { FormActions } from "./components/FormActions.tsx";
+import { LookupFeedback } from "./components/LookupFeedback.tsx";
+import { NameField } from "./components/NameField.tsx";
 
 export function NamedayForm() {
   const [date, setDate] = useState("");
@@ -81,79 +59,29 @@ export function NamedayForm() {
         </p>
 
         <form className="nameday-form" onSubmit={(event) => void submit(event)}>
-          <div className="date-fields">
-            <label className="field" htmlFor="date-input">
-              <span>Datum</span>
-              <input
-                id="date-input"
-                type="text"
-                value={date}
-                onChange={(event) => {
-                  setDate(event.target.value);
-                  setPickerDate("");
-                }}
-                placeholder="např. 7.3."
-                data-cy="date-input"
-              />
-            </label>
-
-            <label className="field field--picker" htmlFor="date-picker">
-              <span>Vybrat datum</span>
-              <input
-                id="date-picker"
-                type="date"
-                value={pickerDate}
-                onChange={(event) => {
-                  setPickerDate(event.target.value);
-                  setDate(event.target.value);
-                }}
-                data-cy="date-picker"
-              />
-            </label>
-          </div>
+          <DateFields
+            date={date}
+            pickerDate={pickerDate}
+            onDateChange={(value) => {
+              setDate(value);
+              setPickerDate("");
+            }}
+            onPickerChange={(value) => {
+              setPickerDate(value);
+              setDate(value);
+            }}
+          />
 
           <div className="choice-divider" aria-hidden="true">
             <span>nebo</span>
           </div>
 
-          <label className="field" htmlFor="name-input">
-            <span>Jméno</span>
-            <input
-              id="name-input"
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="např. Tomáš"
-              autoComplete="given-name"
-              data-cy="name-input"
-            />
-          </label>
+          <NameField name={name} onNameChange={setName} />
 
-          <div className="actions">
-            <button
-              className="button button--primary"
-              type="submit"
-              data-cy="confirm"
-            >
-              Potvrdit
-            </button>
-            <button
-              className="button button--secondary"
-              type="button"
-              onClick={reset}
-              data-cy="reset"
-            >
-              Reset
-            </button>
-          </div>
+          <FormActions onReset={reset} />
         </form>
 
-        <output className="result" aria-live="polite" data-cy="result">
-          {formatResult(result)}
-        </output>
-        <p className="error-message" role="alert" data-cy="error">
-          {error ?? ""}
-        </p>
+        <LookupFeedback result={result} error={error} />
       </section>
     </main>
   );
