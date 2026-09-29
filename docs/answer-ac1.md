@@ -16,6 +16,7 @@ Several names are joined with ` a `. A date answer **ends with a period**.
 
 ## Test cases
 
+
 | ID | Level | What it proves | Do not put it here |
 |---|---|---|---|
 | AC1-API-1 | API | One name: `7.3.` → 200 and `["Tomáš"]` | The Czech sentence. The API returns JSON |
@@ -26,9 +27,9 @@ Several names are joined with ` a `. A date answer **ends with a period**.
 | AC1-CMP-3 | Component | No names render `1.1. nemá svátek žádné jméno.` | |
 | AC1-E2E-1 | E2E | Typed `07.03.` is answered as `7.3. má svátek Tomáš.` through the real page | The other two sentences. Leading zeros are the point of this one journey |
 
-The component tests must use an exact text check. A partial check such as “contains Tomáš” still passes if the final period is missing.
+# Tests
 
-## AC1-API-1 — one name
+## AC1-1 — one name
 
 ```ts
 it("returns the one name for 7 March", async () => {
@@ -43,7 +44,7 @@ it("returns the one name for 7 March", async () => {
 });
 ```
 
-## AC1-API-2 — several names
+## AC1-2 — several names
 
 ```ts
 it("returns every name for 7 April", async () => {
@@ -58,7 +59,7 @@ it("returns every name for 7 April", async () => {
 });
 ```
 
-## AC1-API-3 — no name
+## AC1-3 — no name
 
 ```ts
 it("returns an empty name list for 1 January", async () => {
@@ -73,7 +74,7 @@ it("returns an empty name list for 1 January", async () => {
 });
 ```
 
-## AC1-CMP-1 — one-name sentence
+## AC1-4 — one-name sentence
 
 The lookup is stubbed. This test owns the wording, not the calendar.
 
@@ -91,7 +92,7 @@ it("renders one name and a final period", () => {
 });
 ```
 
-## AC1-CMP-2 — several names joined with “a”
+## AC1-5 — several names joined with “a”
 
 ```tsx
 it("joins several names with 'a' and ends with a period", () => {
@@ -114,7 +115,7 @@ it("joins several names with 'a' and ends with a period", () => {
 });
 ```
 
-## AC1-CMP-3 — day with no name
+## AC1-6— day with no name
 
 ```tsx
 it("renders the zero-names sentence", () => {
@@ -133,9 +134,8 @@ it("renders the zero-names sentence", () => {
 });
 ```
 
-## AC1-E2E-1 — one real journey
+## AC1-7 — one real journey
 
-`07.03.` is deliberate. The answer must show `7.3.`, not the text the user typed. The other two sentences stay in the component tests.
 
 ```ts
 it("shows 7 March without leading zeros", () => {

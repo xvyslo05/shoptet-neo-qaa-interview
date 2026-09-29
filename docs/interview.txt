@@ -1,0 +1,15 @@
+1. Ukazat fci parseDate v backend/src/engine.ts
+Dotaz: 
+- co je vstup, co muze byt vystup
+- kdy fce vraci null: priklad
+- kdy vraci match (den,mnesic): priklad
+
+Czech forms such as 7.3., 7.3, 07.03., 7.3.2024, and 7. 3. 2024 match, and so does ISO 2024-03-07. Anything else, including not-a-date and -1.5., is null because neither pattern matches.
+A day or month that cannot exist, such as 32.1. or 31.4., is also null. February is allowed up to the 29th at this step.
+The year is checked only for 29 February. 29.2. has no year, so it is accepted. 29.2.2024 and 29.2.2000 are accepted. 29.2.2023 and 29.2.1900 are null.
+
+2. Ukazat aplikaci - frontend, proklikat, ukazat ACs, soustredit se na AC1.
+Dotaz: 
+Tady vidis AC. Zamysli se nad tim jake test kejsy bys k tomu napsal/navrnul a na jake urovni bys ty test kejsy otestoval.
+Ukazat 1 API, 1 component a 1 e2e test v docs/answer-ac1.md - co delaji (soustredit se na intercept u CT, kde se dotaz na srv neposila)
+Ukazat e2e/cypress/e2e/nameday_smoke.e2e.cy.ts. Jake chyby bys tam nasel. 
